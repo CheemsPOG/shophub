@@ -50,8 +50,10 @@ public class SellerProductService {
         this.mapper = mapper;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Map<String, Object> list(UUID shopId, int page, int size) {
+        products.findByShopIdAndStatus(shopId, "pending")
+                .forEach(product -> product.setStatus("active"));
         Page<Product> result = products.findByShopId(shopId,
                 PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by(Sort.Order.desc("createdAt"))));
         return JsonMaps.of(
@@ -72,7 +74,10 @@ public class SellerProductService {
         Product product = new Product();
         product.setShopId(shopId);
         apply(product, body, true);
-        product.setStatus("draft");
+        product.setStatus(wantsDraft(body) ? "draft" : "active");
+        if ("active".equals(product.getStatus())) {
+            requireVerifiedShop(shopId);
+        }
         product.setSalesCount(0);
         product.setReviewCount(0);
         product.setRatingAvg(BigDecimal.ZERO);
@@ -97,15 +102,22 @@ public class SellerProductService {
 
     @Transactional
     public Map<String, Object> publish(UUID shopId, UUID id) {
-        Shop shop = shops.findById(shopId).orElseThrow(() -> ApiException.notFound("Shop not found"));
-        if (!"verified".equals(shop.getStatus())) {
-            throw ApiException.forbidden("Shop must be verified before publishing products");
-        }
+        requireVerifiedShop(shopId);
         Product product = owned(shopId, id);
-        if (!List.of("draft", "rejected").contains(product.getStatus())) {
-            throw ApiException.badRequest("INVALID_STATE_TRANSITION", "Only draft or rejected products can be published");
+        if ("active".equals(product.getStatus())) {
+            return mapper.toProduct(product);
         }
-        product.setStatus("pending");
+        product.setStatus("active");
+        return mapper.toProduct(product);
+    }
+
+    @Transactional
+    public Map<String, Object> unpublish(UUID shopId, UUID id) {
+        Product product = owned(shopId, id);
+        if (!"active".equals(product.getStatus())) {
+            throw ApiException.badRequest("INVALID_STATE_TRANSITION", "Only active products can be unpublished");
+        }
+        product.setStatus("draft");
         return mapper.toProduct(product);
     }
 
@@ -119,6 +131,21 @@ public class SellerProductService {
             products.flush();
         } catch (DataIntegrityViolationException ex) {
             throw ApiException.conflict("PRODUCT_IN_USE", "This product has orders or carts referencing it and cannot be deleted");
+        }
+    }
+
+    private static boolean wantsDraft(Map<String, Object> body) {
+        Object draft = body.get("draft");
+        if (draft instanceof Boolean flag) {
+            return flag;
+        }
+        return draft != null && "true".equalsIgnoreCase(String.valueOf(draft).trim());
+    }
+
+    private void requireVerifiedShop(UUID shopId) {
+        Shop shop = shops.findById(shopId).orElseThrow(() -> ApiException.notFound("Shop not found"));
+        if (!"verified".equals(shop.getStatus())) {
+            throw ApiException.forbidden("Your shop must be verified by an admin before you can list products for sale");
         }
     }
 

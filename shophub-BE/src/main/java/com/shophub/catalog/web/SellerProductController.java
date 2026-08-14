@@ -61,6 +61,11 @@ public class SellerProductController {
         return sellerProductService.publish(shopId(principal), id);
     }
 
+    @PostMapping("/{id}/unpublish")
+    public Map<String, Object> unpublish(@AuthenticationPrincipal ShopHubPrincipal principal, @PathVariable UUID id) {
+        return sellerProductService.unpublish(shopId(principal), id);
+    }
+
     @DeleteMapping("/{id}")
     public Map<String, String> delete(@AuthenticationPrincipal ShopHubPrincipal principal, @PathVariable UUID id) {
         sellerProductService.delete(shopId(principal), id);

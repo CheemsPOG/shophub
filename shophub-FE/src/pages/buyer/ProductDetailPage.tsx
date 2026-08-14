@@ -50,7 +50,6 @@ export function ProductDetailPage() {
   const [added, setAdded] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
-  const [reviewTitle, setReviewTitle] = useState('');
   const [reviewBody, setReviewBody] = useState('');
   const [reviewError, setReviewError] = useState('');
   const [reviewSaving, setReviewSaving] = useState(false);
@@ -89,8 +88,8 @@ export function ProductDetailPage() {
       navigate('/login/buyer');
       return;
     }
-    if (!reviewTitle.trim() || !reviewBody.trim()) {
-      setReviewError('Please fill in a title and your review');
+    if (!reviewBody.trim()) {
+      setReviewError('Please write your review');
       return;
     }
     setReviewSaving(true);
@@ -98,7 +97,7 @@ export function ProductDetailPage() {
     try {
       await api(`/catalog/products/${product.id}/reviews`, {
         method: 'POST',
-        body: JSON.stringify({ rating: reviewRating, title: reviewTitle.trim(), body: reviewBody.trim() }),
+        body: JSON.stringify({ rating: reviewRating, body: reviewBody.trim() }),
       });
       const [updatedProduct, updatedReviews] = await Promise.all([
         api<Product>(`/catalog/products/${product.id}`),
@@ -107,7 +106,6 @@ export function ProductDetailPage() {
       setProduct(asProduct(updatedProduct));
       setReviews(updatedReviews ?? []);
       setShowReviewForm(false);
-      setReviewTitle('');
       setReviewBody('');
       setReviewRating(5);
     } catch (err) {
@@ -233,7 +231,7 @@ export function ProductDetailPage() {
         {/* Info */}
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <Link to={`/seller`} className="text-sm font-medium text-brand-600 hover:underline">{product.brand}</Link>
+            <span className="text-sm font-medium text-brand-600">{product.brand || product.sellerName}</span>
             <span className="text-ink-300">•</span>
             <Link to={`/shop?category=${product.category.toLowerCase()}`} className="text-sm text-ink-500 hover:text-ink-900">{product.category}</Link>
           </div>
@@ -326,14 +324,14 @@ export function ProductDetailPage() {
           </button>
 
           {/* Seller card */}
-          <Link to="/seller" className="mt-5 flex items-center gap-3 rounded-2xl border border-ink-100 bg-white p-4 transition-colors hover:border-ink-200">
+          <div className="mt-5 flex items-center gap-3 rounded-2xl border border-ink-100 bg-white p-4">
             <Avatar className="h-11 w-11 rounded-xl" />
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-ink-900">{product.sellerName}</p>
-              <p className="text-xs text-ink-500">★ 4.8 · 50K+ sales · Verified</p>
+              <p className="text-xs text-ink-500">Sold by this store · Verified sellers available</p>
             </div>
-            <Store className="h-5 w-5 text-ink-400" />
-          </Link>
+            <Store className="h-5 w-5 shrink-0 text-ink-400" />
+          </div>
 
           {/* Trust */}
           <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl border border-ink-100 bg-white p-4">
@@ -424,12 +422,8 @@ export function ProductDetailPage() {
                     </div>
                   </div>
                   <div className="mt-3">
-                    <label className="text-xs font-medium text-ink-600">Title</label>
-                    <input value={reviewTitle} onChange={e => setReviewTitle(e.target.value)} placeholder="Summarize your experience" className="mt-1 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
-                  </div>
-                  <div className="mt-3">
-                    <label className="text-xs font-medium text-ink-600">Review</label>
-                    <textarea value={reviewBody} onChange={e => setReviewBody(e.target.value)} rows={3} placeholder="What did you like or dislike?" className="mt-1 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
+                    <label className="text-xs font-medium text-ink-600">Your review</label>
+                    <textarea value={reviewBody} onChange={e => setReviewBody(e.target.value)} rows={4} placeholder="What did you like or dislike?" className="mt-1 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
                   </div>
                   <div className="mt-4 flex justify-end gap-2">
                     <button type="button" onClick={() => setShowReviewForm(false)} className="rounded-xl border border-ink-200 px-4 py-2 text-sm font-medium text-ink-700 hover:bg-white">Cancel</button>
@@ -456,8 +450,7 @@ export function ProductDetailPage() {
                           <Stars rating={r.rating} size={12} />
                           <span className="text-xs text-ink-400">{r.date ? formatDate(r.date) : ''}</span>
                         </div>
-                        <p className="mt-2 text-sm font-medium text-ink-900">{r.title}</p>
-                        <p className="mt-1 text-sm text-ink-600">{r.body}</p>
+                        <p className="mt-2 text-sm text-ink-600">{r.body}</p>
                         <div className="mt-2 flex items-center gap-3 text-xs text-ink-400">
                           <button className="flex items-center gap-1 hover:text-ink-700"><MessageSquare className="h-3.5 w-3.5" /> Helpful ({r.helpful})</button>
                           <button className="hover:text-ink-700">Reply</button>

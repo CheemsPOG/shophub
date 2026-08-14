@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.shophub.dispute.domain.Dispute;
 import com.shophub.dispute.infrastructure.DisputeRepository;
+import com.shophub.identity.infrastructure.UserRepository;
 import com.shophub.order.application.OrderService;
 import com.shophub.order.domain.Order;
 import com.shophub.order.infrastructure.OrderRepository;
@@ -33,16 +34,19 @@ public class AdminDisputeController {
     private final OrderRepository orders;
     private final OrderService orderService;
     private final ShopRepository shops;
+    private final UserRepository users;
 
     public AdminDisputeController(
             DisputeRepository disputes,
             OrderRepository orders,
             OrderService orderService,
-            ShopRepository shops) {
+            ShopRepository shops,
+            UserRepository users) {
         this.disputes = disputes;
         this.orders = orders;
         this.orderService = orderService;
         this.shops = shops;
+        this.users = users;
     }
 
     @GetMapping
@@ -104,6 +108,7 @@ public class AdminDisputeController {
         dto.put("orderNumber", order == null ? "" : order.getOrderNumber());
         dto.put("orderId", dispute.getOrderId().toString());
         dto.put("buyerId", dispute.getBuyerId().toString());
+        dto.put("buyerName", users.findById(dispute.getBuyerId()).map(u -> u.getFullName()).orElse(""));
         dto.put("sellerId", dispute.getShopId().toString());
         dto.put("sellerName", shops.findById(dispute.getShopId()).map(s -> s.getBusinessName()).orElse(""));
         dto.put("reason", dispute.getReason());

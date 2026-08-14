@@ -91,7 +91,7 @@ export interface Review {
   author: string;
   avatar: string;
   rating: number;
-  title: string;
+  title?: string;
   body: string;
   date: string;
   helpful: number;
@@ -233,7 +233,7 @@ export const PRODUCTS: Product[] = PRODUCT_SEEDS.map((p, i) => {
     sellerName: seller.name,
     brand: p.brand,
     tags: p.tags,
-    status: i % 11 === 0 ? 'draft' : i % 13 === 0 ? 'pending' : 'active',
+    status: i % 11 === 0 ? 'draft' : 'active',
     createdAt: new Date(Date.now() - i * 86400000 * 3).toISOString(),
     sales: Math.floor(Math.random() * 5000) + 50,
     variants: i % 3 === 0 ? [{ name: 'Color', options: ['Black', 'White', 'Blue'] }, { name: 'Size', options: ['S', 'M', 'L'] }] : undefined,

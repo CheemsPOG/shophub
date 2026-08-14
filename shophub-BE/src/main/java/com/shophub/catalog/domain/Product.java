@@ -52,7 +52,7 @@ public class Product {
     @Column(name = "stock", nullable = false)
     private int stock;
 
-    /** DB check: draft, pending, active, rejected */
+    /** DB check: draft, pending, active, rejected. Sellers list as active or draft; pending is unused. */
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 

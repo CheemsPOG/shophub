@@ -1,4 +1,4 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { ShoppingBag, Shield, Store } from 'lucide-react';
 

@@ -23,11 +23,8 @@ import com.shophub.catalog.domain.Category;
 import com.shophub.catalog.domain.Product;
 import com.shophub.catalog.infrastructure.CategoryRepository;
 import com.shophub.catalog.infrastructure.ProductRepository;
-import com.shophub.notification.domain.Notification;
-import com.shophub.notification.infrastructure.NotificationRepository;
 import com.shophub.shared.error.ApiException;
 import com.shophub.shared.web.JsonMaps;
-import com.shophub.shop.infrastructure.ShopRepository;
 
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -36,20 +33,14 @@ public class AdminCatalogController {
     private final ProductRepository products;
     private final CategoryRepository categories;
     private final CatalogMapper mapper;
-    private final ShopRepository shops;
-    private final NotificationRepository notifications;
 
     public AdminCatalogController(
             ProductRepository products,
             CategoryRepository categories,
-            CatalogMapper mapper,
-            ShopRepository shops,
-            NotificationRepository notifications) {
+            CatalogMapper mapper) {
         this.products = products;
         this.categories = categories;
         this.mapper = mapper;
-        this.shops = shops;
-        this.notifications = notifications;
     }
 
     @GetMapping("/products")
@@ -67,31 +58,6 @@ public class AdminCatalogController {
                 "size", result.getSize(),
                 "totalElements", result.getTotalElements(),
                 "totalPages", result.getTotalPages());
-    }
-
-    @PostMapping("/products/{id}/approve")
-    @Transactional
-    public Map<String, Object> approve(@PathVariable UUID id) {
-        Product product = products.findById(id).orElseThrow(() -> ApiException.notFound("Product not found"));
-        if (!"pending".equals(product.getStatus())) {
-            throw ApiException.badRequest("INVALID_STATE_TRANSITION", "Only pending products can be approved");
-        }
-        product.setStatus("active");
-        notifySeller(product, "Product approved", product.getTitle() + " is now live.");
-        return mapper.toProduct(product);
-    }
-
-    @PostMapping("/products/{id}/reject")
-    @Transactional
-    public Map<String, Object> reject(@PathVariable UUID id, @RequestBody(required = false) Map<String, String> body) {
-        Product product = products.findById(id).orElseThrow(() -> ApiException.notFound("Product not found"));
-        if (!List.of("pending", "active").contains(product.getStatus())) {
-            throw ApiException.badRequest("INVALID_STATE_TRANSITION", "Product cannot be rejected from " + product.getStatus());
-        }
-        product.setStatus("rejected");
-        String reason = body == null ? "" : body.getOrDefault("reason", "");
-        notifySeller(product, "Product rejected", product.getTitle() + (reason.isBlank() ? " was rejected." : ": " + reason));
-        return mapper.toProduct(product);
     }
 
     @GetMapping("/categories")
@@ -139,19 +105,6 @@ public class AdminCatalogController {
         Category category = categories.findById(id).orElseThrow(() -> ApiException.notFound("Category not found"));
         categories.delete(category);
         return Map.of("status", "ok");
-    }
-
-    private void notifySeller(Product product, String title, String body) {
-        shops.findById(product.getShopId()).ifPresent(shop -> {
-            Notification notification = new Notification();
-            notification.setUserId(shop.getUserId());
-            notification.setType("system");
-            notification.setTitle(title);
-            notification.setBody(body);
-            notification.setEntityType("product");
-            notification.setEntityId(product.getId());
-            notifications.save(notification);
-        });
     }
 
     private String slugify(String name) {

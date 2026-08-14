@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Edit2, Trash2, Eye, Package, Send } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Package, Send, EyeOff } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { formatCurrency, formatNumber } from '@/lib/format';
@@ -8,7 +8,7 @@ import { ProductImage } from '@/components/ProductImage';
 import { api, ApiError } from '@/lib/api';
 import type { Product } from '@/lib/data';
 
-const FILTERS = ['all', 'active', 'draft', 'pending', 'rejected'];
+const FILTERS = ['all', 'active', 'draft'];
 
 function normalize(p: Product): Product {
   return { ...p, price: Number(p.price), compareAt: p.compareAt == null ? undefined : Number(p.compareAt), stock: Number(p.stock), sales: Number(p.sales) };
@@ -35,14 +35,27 @@ export function SellerProductsPage() {
     return true;
   });
 
-  const submitForReview = async (id: string) => {
+  const publish = async (id: string) => {
     setBusyId(id);
     setError('');
     try {
       await api(`/seller/products/${id}/publish`, { method: 'POST' });
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not submit product for review');
+      setError(err instanceof ApiError ? err.message : 'Could not publish product');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const unpublish = async (id: string) => {
+    setBusyId(id);
+    setError('');
+    try {
+      await api(`/seller/products/${id}/unpublish`, { method: 'POST' });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not unpublish product');
     } finally {
       setBusyId(null);
     }
@@ -67,7 +80,7 @@ export function SellerProductsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink-900">Products</h1>
-          <p className="text-sm text-ink-500">{products.length} products in your catalog</p>
+          <p className="text-sm text-ink-500">{products.length} products in your catalog — listings you add go live immediately</p>
         </div>
         <Link to="/seller/products/new" className="flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-brand hover:bg-brand-600">
           <Plus className="h-4 w-4" /> Add product
@@ -158,15 +171,24 @@ export function SellerProductsPage() {
                       <div className="flex items-center justify-end gap-1">
                         {p.status === 'draft' && (
                           <button
-                            onClick={() => void submitForReview(p.id)}
+                            onClick={() => void publish(p.id)}
                             disabled={busyId === p.id}
-                            title="Submit for review"
+                            title="List for sale"
                             className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 hover:bg-ink-50 hover:text-brand-600 disabled:opacity-40"
                           >
                             <Send className="h-3.5 w-3.5" />
                           </button>
                         )}
-                        <Link to={`/product/${p.id}`} className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 hover:bg-ink-50 hover:text-ink-700"><Eye className="h-3.5 w-3.5" /></Link>
+                        {p.status === 'active' && (
+                          <button
+                            onClick={() => void unpublish(p.id)}
+                            disabled={busyId === p.id}
+                            title="Unpublish — hide from shop"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 hover:bg-ink-50 hover:text-ink-700 disabled:opacity-40"
+                          >
+                            <EyeOff className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         <Link to={`/seller/products/${p.id}/edit`} className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 hover:bg-ink-50 hover:text-brand-600"><Edit2 className="h-3.5 w-3.5" /></Link>
                         <button onClick={() => void remove(p.id)} disabled={busyId === p.id} className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-400 hover:bg-error-50 hover:text-error-600 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>

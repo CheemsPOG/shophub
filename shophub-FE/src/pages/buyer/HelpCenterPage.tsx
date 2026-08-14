@@ -5,7 +5,7 @@ const FAQ = [
   { q: 'How do I track my order?', a: 'Go to My Orders, find your order, and click "Track" to see real-time delivery status.' },
   { q: 'What is the return policy?', a: 'You can return most items within 30 days of delivery for a full refund, as long as they are in original condition.' },
   { q: 'When will I get my refund?', a: 'Refunds are processed within 3-5 business days after we receive the returned item.' },
-  { q: 'How do I contact a seller?', a: 'Go to Messages in your account, select the seller conversation, and send a message directly.' },
+  { q: 'How do I contact support?', a: 'Open Help Center and use Contact Support, or reach out from your order details if you need help with a specific purchase.' },
   { q: 'Is my payment secure?', a: 'Yes, all payments are encrypted and processed through secure payment gateways with buyer protection.' },
   { q: 'Can I change my shipping address after ordering?', a: 'You can change the address before the order is shipped. Contact support immediately if you need to update it.' },
 ];

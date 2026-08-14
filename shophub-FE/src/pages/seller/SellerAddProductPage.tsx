@@ -16,6 +16,7 @@ type ProductDto = {
   price: number;
   compareAt: number | null;
   stock: number;
+  status: string;
   tags: string[];
   images: string[];
   variants: { name: string; options: string[] }[];
@@ -38,6 +39,7 @@ export function SellerAddProductPage() {
   const [price, setPrice] = useState('');
   const [compareAt, setCompareAt] = useState('');
   const [stock, setStock] = useState('');
+  const [status, setStatus] = useState('draft');
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -62,6 +64,7 @@ export function SellerAddProductPage() {
         setCompareAt(p.compareAt == null ? '' : String(p.compareAt));
         setStock(String(p.stock ?? ''));
         setImages(p.images ?? []);
+        setStatus(p.status ?? 'draft');
         setVariants(p.variants?.length ? p.variants.map(v => ({ name: v.name, options: v.options.join(', ') })) : [{ name: '', options: '' }]);
       })
       .catch(err => setError(err instanceof Error ? err.message : 'Could not load product'))
@@ -89,8 +92,7 @@ export function SellerAddProductPage() {
     }
   };
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const save = async (draft: boolean) => {
     setError('');
     if (!title.trim()) {
       setError('Product title is required');
@@ -119,9 +121,16 @@ export function SellerAddProductPage() {
         variants: variants
           .filter(v => v.name.trim())
           .map(v => ({ name: v.name.trim(), options: v.options.split(',').map(o => o.trim()).filter(Boolean) })),
+        draft,
       };
       if (isEditing) {
         await api(`/seller/products/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+        if (!draft && status !== 'active' && id) {
+          await api(`/seller/products/${id}/publish`, { method: 'POST' });
+        }
+        if (draft && status === 'active' && id) {
+          await api(`/seller/products/${id}/unpublish`, { method: 'POST' });
+        }
       } else {
         await api('/seller/products', { method: 'POST', body: JSON.stringify(body) });
       }
@@ -131,6 +140,11 @@ export function SellerAddProductPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void save(false);
   };
 
   if (loading) {
@@ -144,7 +158,7 @@ export function SellerAddProductPage() {
           <ArrowLeft className="h-4 w-4" /> Back to products
         </button>
         <h1 className="mt-3 font-display text-2xl font-bold text-ink-900">{isEditing ? 'Edit product' : 'Add new product'}</h1>
-        <p className="text-sm text-ink-500">Fill in the details below to {isEditing ? 'update your' : 'list a new'} product</p>
+        <p className="text-sm text-ink-500">{isEditing ? 'You manage this listing. Changes apply immediately.' : 'New products go live on the shop as soon as you add them. Admins approve sellers, not individual products.'}</p>
       </div>
 
       <form onSubmit={submit} className="space-y-5">
@@ -266,10 +280,14 @@ export function SellerAddProductPage() {
         </div>
 
         {/* Submit */}
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
           <button type="button" onClick={() => navigate('/seller/products')} className="rounded-xl border border-ink-200 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:bg-ink-50">Cancel</button>
+          <button type="button" onClick={() => void save(true)} disabled={saving || uploading} className="rounded-xl border border-ink-200 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save as draft'}
+          </button>
           <button type="submit" disabled={saving || uploading} className="flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-brand hover:bg-brand-600 disabled:opacity-50">
-            <Check className="h-4 w-4" /> {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Save as draft'}
+            <Check className="h-4 w-4" />
+            {saving ? 'Saving…' : isEditing ? (status === 'active' ? 'Save changes' : 'List for sale') : 'Add product'}
           </button>
         </div>
       </form>

@@ -17,13 +17,12 @@ const NAV: NavGroup[] = [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   ]},
   { section: 'Catalog', items: [
-    { to: '/admin/products', label: 'Products', icon: Package },
+    { to: '/admin/products', label: 'Catalog', icon: Package },
     { to: '/admin/categories', label: 'Categories', icon: FolderTree },
   ]},
   { section: 'Users', items: [
     { to: '/admin/users', label: 'Customers', icon: Users },
     { to: '/admin/sellers', label: 'Sellers', icon: Store },
-    { to: '/admin/applications', label: 'Applications', icon: Store },
   ]},
   { section: 'Operations', items: [
     { to: '/admin/orders', label: 'Orders', icon: CreditCard },

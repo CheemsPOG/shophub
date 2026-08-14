@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { BuyerLayout } from '@/layouts/BuyerLayout';
 import { SellerLayout } from '@/layouts/SellerLayout';
 import { AdminLayout } from '@/layouts/AdminLayout';
@@ -20,7 +20,6 @@ import { WishlistPage } from '@/pages/buyer/WishlistPage';
 import { AccountPage, AccountProfile, AccountSettingsPage } from '@/pages/buyer/AccountPage';
 import { AddressesPage } from '@/pages/buyer/AddressesPage';
 import { NotificationsPage } from '@/pages/buyer/NotificationsPage';
-import { MessagesPage } from '@/pages/buyer/MessagesPage';
 import { HelpCenterPage } from '@/pages/buyer/HelpCenterPage';
 
 import { SellerDashboardPage } from '@/pages/seller/SellerDashboardPage';
@@ -29,8 +28,8 @@ import { SellerAddProductPage } from '@/pages/seller/SellerAddProductPage';
 import { SellerOrdersPage, SellerOrderDetailPage } from '@/pages/seller/SellerOrdersPage';
 import { SellerAnalyticsPage } from '@/pages/seller/SellerAnalyticsPage';
 import { SellerPayoutsPage } from '@/pages/seller/SellerPayoutsPage';
-import { SellerSettingsPage, SellerStoreProfile } from '@/pages/seller/SellerSettingsPage';
-import { SellerMessagesPage } from '@/pages/seller/SellerMessagesPage';
+import { SellerSettingsPage } from '@/pages/seller/SellerSettingsPage';
+import { SellerShopProvider } from '@/lib/sellerShop';
 
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
 import { AdminUsersPage } from '@/pages/admin/AdminUsersPage';
@@ -66,7 +65,6 @@ function App() {
           <Route path="/orders" element={<RequireRole role="buyer"><OrdersPage /></RequireRole>} />
           <Route path="/orders/:id" element={<RequireRole role="buyer"><OrderDetailPage /></RequireRole>} />
           <Route path="/wishlist" element={<RequireRole role="buyer"><WishlistPage /></RequireRole>} />
-          <Route path="/messages" element={<RequireRole role="buyer"><MessagesPage /></RequireRole>} />
           <Route path="/notifications" element={<RequireRole role="buyer"><NotificationsPage /></RequireRole>} />
           <Route path="/addresses" element={<RequireRole role="buyer"><AddressesPage /></RequireRole>} />
           <Route path="/help" element={<HelpCenterPage />} />
@@ -77,7 +75,7 @@ function App() {
         </Route>
 
         {/* Seller portal */}
-        <Route path="/seller" element={<RequireRole role="seller"><SellerLayout /></RequireRole>}>
+        <Route path="/seller" element={<RequireRole role="seller"><SellerShopProvider><SellerLayout /></SellerShopProvider></RequireRole>}>
           <Route index element={<SellerDashboardPage />} />
           <Route path="products" element={<SellerProductsPage />} />
           <Route path="products/new" element={<SellerAddProductPage />} />
@@ -86,10 +84,7 @@ function App() {
           <Route path="orders/:id" element={<SellerOrderDetailPage />} />
           <Route path="analytics" element={<SellerAnalyticsPage />} />
           <Route path="payouts" element={<SellerPayoutsPage />} />
-          <Route path="messages" element={<SellerMessagesPage />} />
-          <Route path="settings" element={<SellerSettingsPage />}>
-            <Route index element={<SellerStoreProfile />} />
-          </Route>
+          <Route path="settings" element={<SellerSettingsPage />} />
         </Route>
 
         {/* Admin console */}
@@ -99,7 +94,7 @@ function App() {
           <Route path="categories" element={<AdminCategoriesPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="sellers" element={<AdminSellersPage />} />
-          <Route path="applications" element={<AdminSellersPage />} />
+          <Route path="applications" element={<Navigate to="/admin/sellers?tab=applications" replace />} />
           <Route path="orders" element={<AdminOrdersPage />} />
           <Route path="disputes" element={<AdminDisputesPage />} />
           <Route path="coupons" element={<AdminCouponsPage />} />

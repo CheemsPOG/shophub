@@ -135,7 +135,7 @@ export function ShopPage() {
           <h1 className="font-display text-2xl font-bold text-ink-900">
             {deals ? 'Deals & Offers' : category ? categories.find(c => c.slug === category)?.name : 'All Products'}
           </h1>
-          <p className="text-sm text-ink-500">{filtered.length} products found</p>
+          <p className="text-sm text-ink-500">{loading ? 'Loading…' : `${filtered.length} products found`}</p>
         </div>
 
         <div className="flex items-center gap-2">

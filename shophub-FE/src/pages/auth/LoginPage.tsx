@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, Eye, EyeOff, Lock, Mail, ShieldCheck, ShoppingBag, Store } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
@@ -52,6 +52,7 @@ function RoleLogin({ role }: { role: AccountRole }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const copy = roleCopy[role];
 
@@ -64,7 +65,13 @@ function RoleLogin({ role }: { role: AccountRole }) {
     const rememberMe = (form.elements.namedItem('rememberMe') as HTMLInputElement).checked;
     try {
       await login(email, password, role, rememberMe);
-      navigate(role === 'buyer' ? '/' : `/${role}`);
+      const next = searchParams.get('next');
+      const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
+      if (role === 'buyer' && safeNext) {
+        navigate(safeNext);
+      } else {
+        navigate(role === 'buyer' ? '/' : `/${role}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed');
     }

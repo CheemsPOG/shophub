@@ -52,6 +52,9 @@ public class MessagingService {
 
     @Transactional
     public Map<String, Object> create(ShopHubPrincipal principal, UUID shopId, boolean support) {
+        if (!"buyer".equals(principal.getRole()) && !"admin".equals(principal.getRole())) {
+            throw ApiException.forbidden("Only buyers can start a conversation");
+        }
         Conversation conversation;
         if (support) {
             conversation = conversations.findByBuyerIdAndSupportTrue(principal.getUserId()).orElseGet(() -> {
@@ -106,6 +109,7 @@ public class MessagingService {
         message.setBody(text);
         messages.save(message);
         conversation.setLastMessageAt(Instant.now());
+        conversations.save(conversation);
         Map<String, Object> dto = new LinkedHashMap<>();
         dto.put("id", message.getId().toString());
         dto.put("from", "me");

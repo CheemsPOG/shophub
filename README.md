@@ -4,9 +4,37 @@ A multi-vendor marketplace (buyer / seller / admin) built as a learning project:
 
 Three portals, one login system, one database:
 
-- **Buyer** — browse, cart, checkout, orders, wishlist, addresses, reviews, messages, notifications
-- **Seller** — dashboard, product CRUD with real image uploads, order fulfillment, analytics, payouts
-- **Admin** — catalog moderation, seller applications, disputes, coupons, platform settings *(UI still mock — see [Known gaps](#known-gaps-not-bugs))*
+- **Buyer** — browse, cart, checkout, orders, wishlist, addresses, reviews, notifications
+- **Seller** — dashboard, product CRUD with real image uploads (new listings go live immediately; admin does not approve products), order fulfillment, analytics, payouts
+- **Admin** — seller applications, catalog overview, disputes, coupons, platform settings *(most of the admin UI is still mock — see [Known gaps](#known-gaps-not-bugs))*
+
+---
+
+## Architecture
+
+A **modular monolith**, not microservices: one Spring Boot process, package-by-feature under `com.shophub` (`identity`, `shop`, `catalog`, `cart`, `order`, `promotion`, `dispute`, `payout`, `messaging`, `notification`, `analytics`, `platform`, `shared`), one PostgreSQL database. Nginx is the only public origin in Option A — `/` is the SPA, `/api/` and `/actuator/` go to Spring Boot, `/media/` is proxied to MinIO so the browser never hits a second origin.
+
+Full design rationale: [`scope.md`](./scope.md). User-level paths (what is live vs mock): [`FLOWS.md`](./FLOWS.md).
+
+### System architecture — request flow
+
+Actor → Nginx gateway → JWT filter → feature module → JPA → PostgreSQL. Notifications are written in the same request as checkout / ship / deliver (the `outbox` table exists but has no worker). Redis and MailHog run in Compose but are unused.
+
+![ShopHub v2 system architecture](docs/architecture/01-system-architecture.svg)
+
+### Stack by layer
+
+Exact versions from `pom.xml`, `package.json`, Dockerfiles, and `docker-compose.yml`.
+
+![ShopHub v2 tech stack](docs/architecture/02-tech-stack.svg)
+
+### Marketplace flows
+
+What actually runs against Postgres today. Solid teal = wired end-to-end. Dashed gray = mock UI or unused. Blue = order state.
+
+![ShopHub v2 marketplace flows](docs/architecture/03-marketplace-flows.svg)
+
+Regenerate the system-architecture diagram: `python docs/architecture/generate_diagrams.py`
 
 ---
 
@@ -14,7 +42,7 @@ Three portals, one login system, one database:
 
 **Backend**
 - Java 21, Spring Boot 3.4.1 (Web, Security, Validation, Data JPA)
-- PostgreSQL 16, Flyway (11 versioned migrations, `V1__identity.sql` → `V11__platform_outbox_audit.sql`)
+- PostgreSQL 16, Flyway (12 versioned migrations, `V1__identity.sql` → `V12__products_no_moderation.sql`)
 - JWT auth (`jjwt` 0.12.6) — access + refresh tokens, "remember me", BCrypt password hashing
 - MinIO (S3-compatible) for real product image uploads, with a public-read bucket policy
 - Redis, Micrometer + Prometheus — wired into Compose but not yet used by any code path (see below)
@@ -31,8 +59,6 @@ Three portals, one login system, one database:
 **Infrastructure**
 - Docker + Docker Compose: `postgres`, `redis`, `minio`, `mailhog`, `backend`, `frontend`, `nginx`
 - Nginx as the single entry point / API gateway — same-origin routing (`/` → SPA, `/api/` + `/actuator/` → backend, `/media/` → MinIO), so the browser never deals with CORS
-
-**Architecture** — a **modular monolith**, not microservices. One deployable Spring Boot app, package-by-feature under `com.shophub`: `identity`, `shop`, `catalog`, `cart`, `order`, `promotion`, `dispute`, `payout`, `messaging`, `notification`, `analytics`, `platform`, `shared`. Full design rationale in [`../scope.md`](../scope.md).
 
 ---
 
@@ -220,7 +246,7 @@ docker compose down -v
 docker compose up -d --build
 ```
 
-`down -v` removes the Postgres and MinIO volumes, so Flyway recreates the schema and the demo seeder runs again from scratch.
+`down -v` **destroys** the Postgres and MinIO volumes — every uploaded image, review, order, and account change is gone. Flyway recreates the schema and the demo seeder runs again from scratch. Use this only when you want a clean demo. To stop the stack **without** losing data: `docker compose down`.
 
 ---
 
@@ -233,14 +259,75 @@ docker compose up -d --build
 - **Login fails right after `down -v`** — wait until `Started ShopHubApplication` in backend logs; the seeder runs on first boot.
 - **Frontend loads but `/api` fails** — check `docker compose ps` and `curl http://localhost:8082/api/v1/health`. Nginx waits until the backend healthcheck passes.
 - **Changed code but the UI/API is stale** — images copy source at build time, they aren't mounted volumes. Rebuild: `docker compose up -d --build backend` and/or `frontend`.
+- **Uploaded images / reviews / orders vanished overnight** — Postgres and MinIO use named Docker volumes (`postgres_data`, `minio_data`). A normal stop (`docker compose down`, Docker Desktop restart, PC reboot) **keeps** that data. It is wiped only by `docker compose down -v`, Docker Desktop "Purge data" / factory reset, or deleting those volumes. The demo seeder then runs again because the `users` table is empty, so you get the stock catalog with zero reviews and no uploads. To keep your own data, never pass `-v` unless you intend a full reset.
 - **Host Java is newer than 21** — run the API via Docker (Option A/B) or install JDK 21 for Option C.
 
 ### Known gaps (not bugs)
 
-The buyer app (home, shop, product detail, cart, checkout, orders, wishlist, addresses, notifications, messages, reviews) and most of the seller portal (dashboard, products, orders, analytics, payouts) are fully wired to the real API and database. The seller store-settings page and the entire admin portal (dashboard, users, sellers, catalog moderation, orders, disputes, coupons, settings) are still backed by mock data in `shophub-FE/src/lib/data.ts`, even though the corresponding backend endpoints already exist. Redis is provisioned in Compose but not yet used by any caching or rate-limiting code.
+These are unimplemented, mock, or misleading features — not runtime crashes. Backend APIs already exist for most of the admin/seller items; the UI just isn't wired yet. Suggested order is "highest leverage first" if you want the app to feel complete.
+
+**A. Admin portal still 100% mock** (`shophub-FE/src/lib/data.ts`) — APIs exist under `/api/v1/admin/*`
+
+| # | Screen | Mock source | Real API already there |
+|---|--------|-------------|------------------------|
+| 1 | Admin dashboard | `ADMIN_STATS`, `SELLER_ORDERS`, `DISPUTES`, `SELLER_APPLICATIONS` | `GET /admin/dashboard` |
+| 2 | Admin users | `ADMIN_STATS.recentSignups` (+ random order/spend numbers) | `GET /admin/users`, suspend/restore |
+| 3 | Admin sellers / applications | `SELLER_APPLICATIONS` | `GET/POST /admin/applications` (approve/reject) |
+| 4 | Admin categories | `CATEGORIES` (Add/Edit do nothing) | `CRUD /admin/categories`. Catalog **products** page is now a real read-only list (`GET /admin/products`) — sellers own listings. |
+| 5 | Admin orders | `SELLER_ORDERS` duplicated | `GET /admin/orders` |
+| 6 | Admin disputes | `DISPUTES` | `GET /admin/disputes`, resolve/reject |
+| 7 | Admin coupons | `COUPONS` | `CRUD /admin/coupons` |
+| 8 | Admin settings | hardcoded form, Save does nothing | `GET/PUT /admin/settings` |
+
+**B. Seller pages still mock or incomplete**
+
+| # | Screen | What's wrong | Real API already there |
+|---|--------|--------------|------------------------|
+| 9 | Seller store settings | **Wired** — `GET/PUT /seller/shop` + banner/logo upload | Billing/Security tabs removed |
+| 10 | Seller settings → Billing / Security | **Removed** from the UI | Payouts remain at `/seller/payouts` |
+| 11 | Seller analytics | Revenue/products are real; **no traffic or funnel** (that data was never collected) | none (would need page-view tracking) |
+
+**C. Buyer flows that look real but aren't persisted / aren't implemented**
+
+| # | Screen | What's wrong | Backend? |
+|---|--------|--------------|----------|
+| 13 | Forgot password | Form always "sends" locally; never calls the API | `POST /auth/forgot-password` + `reset-password` exist, but they **don't email** (token is hashed and discarded; MailHog unused) |
+| 14 | Checkout card payment | Card fields are decorative; copy says so. Only COD vs "card" flag is stored — **no Stripe/PayPal** | checkout records `paymentMethod`; card is treated as already paid |
+| 15 | Checkout "confirmation email" | Success copy claims an email was sent | no mailer in the codebase |
+| 16 | Account notification toggles | Explicitly not persisted | none |
+| 17 | Help Center | Static FAQ; search box does nothing; topics aren't pages | none (content page) |
+| 18 | Home newsletter | Email field, no submit | none |
+| 19 | Announcement bar | Hardcoded "End of Summer Sale up to 40% off" | none |
+| 20 | "30-day returns" / buyer protection copy | Marketing text on product + home; **no return/refund flow** | none |
+| 21 | Open a dispute | Buyer has no "report order" action | admin can resolve disputes, but **no buyer `POST /disputes`** |
+| 22 | Buyer / seller avatar upload | Profile photo can't be changed | `PATCH /me` has no avatar; no buyer media endpoint |
+| 23 | Live package tracking | Tracking number is stored as a string; no carrier lookup | none |
+
+**D. Infrastructure provisioned but unused**
+
+| # | Thing | Status |
+|---|--------|--------|
+| 24 | Redis | Running in Compose; Spring Redis auto-config is present but **no cache, sessions, or rate-limiting code** |
+| 25 | MailHog | Running; **no `JavaMailSender` usage** |
+| 26 | Prometheus `/actuator/prometheus` | Exposed; nothing scrapes it |
+| 27 | Frontend unit tests | `npm run typecheck` only — no Vitest/Jest |
+| 28 | Backend tests | One health-check IT (`HealthControllerTest`); no catalog/order/auth coverage |
+
+**E. Product / catalog leftovers**
+
+| # | Thing | Notes |
+|---|--------|-------|
+| 29 | Product status `pending` / `rejected` | Unused in the new flow. Flyway `V12` converts leftover rows to `active`. Constraint still allows the old values. |
+| 30 | Shop verification | New seller sign-up still creates a **pending shop**. They can save drafts; listing for sale requires a **verified shop**. That gate is seller-level, not product-level. Approving applications is an admin-UI gap (#3). |
+| 31 | Admin cannot edit/take down a listing | By design: sellers unpublish or delete their own products. Admin catalog is view-only. |
+| 32 | `data.ts` mock catalog | Still ships `PRODUCTS`, `REVIEWS`, `SELLER_ORDERS`, etc. for remaining mock admin/seller-settings pages. |
+
+Pick from **A** if you want the admin console to manage real data; **B-9** if you want sellers to edit their store; **C-13/14** if you want auth/payments to match the UI copy.
 
 ---
 
 ## Where to go next
 
-- [`../scope.md`](../scope.md) — full architecture, data model, and phase-by-phase implementation plan
+- [Architecture diagrams](#architecture) — runtime flow, tech stack, marketplace paths
+- [`FLOWS.md`](./FLOWS.md) — every buyer / seller / admin path: what works, what is mock, what is missing
+- [`scope.md`](./scope.md) — original architecture, data model, and phase-by-phase plan

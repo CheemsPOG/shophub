@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { FormEvent, useEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, Heart, ShoppingCart, User, Menu, X, Bell, Package,
-  ChevronDown, Store, LogOut, Settings, MapPin, HelpCircle, MessageSquare, Check,
+  ChevronDown, LogOut, Settings, MapPin, HelpCircle, Check,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Avatar } from '@/components/Avatar';
@@ -19,10 +19,46 @@ export function BuyerLayout() {
   const [userOpen, setUserOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useAuth();
   const { cartCount, wishlistCount } = useCart();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+  }, [searchParams]);
+
+  const applySearch = (raw: string) => {
+    const q = raw.trim();
+    if (location.pathname === '/shop') {
+      const next = new URLSearchParams(searchParams);
+      if (q) next.set('q', q); else next.delete('q');
+      if (next.toString() !== searchParams.toString()) {
+        setSearchParams(next, { replace: true });
+      }
+      return;
+    }
+    if (q) navigate(`/shop?q=${encodeURIComponent(q)}`);
+  };
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      const current = (searchParams.get('q') || '').trim();
+      const next = searchQuery.trim();
+      if (next === current) return;
+      if (!next && location.pathname !== '/shop') return;
+      applySearch(searchQuery);
+    }, 350);
+    return () => window.clearTimeout(handle);
+  }, [searchQuery]);
+
+  const submitSearch = (event: FormEvent) => {
+    event.preventDefault();
+    applySearch(searchQuery);
+  };
 
   useEffect(() => {
     api<Category[] | { items: Category[] }>('/catalog/categories')
@@ -86,22 +122,19 @@ export function BuyerLayout() {
           </div>
 
           {/* Search */}
-          <div className="relative hidden flex-1 md:block">
+          <form onSubmit={submitSearch} className="relative hidden flex-1 md:block" role="search">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
             <input
-              type="text"
+              type="search"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search products, brands and categories..."
+              aria-label="Search products"
               className="w-full rounded-xl border border-ink-200 bg-ink-50 py-2.5 pl-10 pr-4 text-sm text-ink-900 placeholder-ink-400 transition-all focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100"
-              onKeyDown={e => { if (e.key === 'Enter') navigate('/shop'); }}
             />
-          </div>
+          </form>
 
           <div className="flex items-center gap-1 sm:gap-2 ml-auto">
-            <NavLink to="/register/seller" className={`hidden sm:flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-ink-600 hover:text-brand-600 hover:bg-brand-50`}>
-              <Store className="h-4 w-4" />
-              Sell
-            </NavLink>
-
             <Link to="/wishlist" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-ink-600 transition-colors hover:bg-ink-50">
               <Heart className="h-5 w-5" />
               {wishlistCount > 0 && (
@@ -189,7 +222,6 @@ export function BuyerLayout() {
                         { to: '/account', icon: User, label: 'My Account' },
                         { to: '/orders', icon: Package, label: 'My Orders' },
                         { to: '/wishlist', icon: Heart, label: 'Wishlist' },
-                        { to: '/messages', icon: MessageSquare, label: 'Messages' },
                         { to: '/addresses', icon: MapPin, label: 'Addresses' },
                         { to: '/account/settings', icon: Settings, label: 'Settings' },
                         { to: '/help', icon: HelpCircle, label: 'Help Center' },
@@ -258,10 +290,17 @@ export function BuyerLayout() {
               <Logo size="sm" />
               <button onClick={() => setMobileOpen(false)}><X className="h-6 w-6 text-ink-600" /></button>
             </div>
-            <div className="mt-6 relative">
+            <form onSubmit={e => { submitSearch(e); setMobileOpen(false); }} className="mt-6 relative" role="search">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-              <input type="text" placeholder="Search..." className="w-full rounded-xl border border-ink-200 bg-ink-50 py-2.5 pl-10 pr-4 text-sm" />
-            </div>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                aria-label="Search products"
+                className="w-full rounded-xl border border-ink-200 bg-ink-50 py-2.5 pl-10 pr-4 text-sm"
+              />
+            </form>
             <div className="mt-6 space-y-1">
               <Link to="/" onClick={() => setMobileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-700 hover:bg-ink-50">Home</Link>
               <Link to="/shop" onClick={() => setMobileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-700 hover:bg-ink-50">All Products</Link>
@@ -294,7 +333,6 @@ export function BuyerLayout() {
             </div>
             {[
               { title: 'Shop', links: ['All Products', 'Deals', 'New Arrivals', 'Best Sellers', 'Gift Cards'] },
-              { title: 'Sell', links: ['Start Selling', 'Seller Dashboard', 'Pricing', 'Seller Guide', 'API Docs'] },
               { title: 'Support', links: ['Help Center', 'Contact Us', 'Shipping', 'Returns', 'Track Order'] },
               { title: 'Company', links: ['About Us', 'Careers', 'Press', 'Blog', 'Privacy Policy'] },
             ].map(col => (

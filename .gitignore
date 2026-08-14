@@ -1,0 +1,4 @@
+.cursor/
+.playwright-mcp/
+docs/
+*.png

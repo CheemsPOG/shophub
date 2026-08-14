@@ -52,7 +52,7 @@ public class AdminDashboardController {
                 "buyers", users.countByRole("buyer"),
                 "sellers", users.countByRole("seller"),
                 "products", products.count(),
-                "pendingProducts", products.countByStatus("pending"),
+                "activeProducts", products.countByStatus("active"),
                 "orders", orders.count(),
                 "gmv", CheckoutService.money(gmv),
                 "openDisputes", disputes.countByStatus("open") + disputes.countByStatus("under_review"),

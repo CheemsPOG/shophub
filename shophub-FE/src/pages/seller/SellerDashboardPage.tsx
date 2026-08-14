@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DollarSign, ShoppingCart, Package, Wallet, ArrowRight, Plus } from 'lucide-react';
+import { DollarSign, ShoppingCart, Package, Wallet, ArrowRight } from 'lucide-react';
 import { StatCard } from '@/components/StatCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ProductImage } from '@/components/ProductImage';
@@ -39,14 +39,9 @@ export function SellerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-ink-900">Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</h1>
-          <p className="text-sm text-ink-500">Live numbers from your store — empty until real orders come in.</p>
-        </div>
-        <Link to="/seller/products/new" className="flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-brand">
-          <Plus className="h-4 w-4" /> Add product
-        </Link>
+      <div>
+        <h1 className="font-display text-2xl font-bold text-ink-900">Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</h1>
+        <p className="text-sm text-ink-500">Live numbers from your store — empty until real orders come in.</p>
       </div>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Revenue" value={formatCurrency(stats.revenue)} icon={<DollarSign className="h-5 w-5" />} accent="brand" />

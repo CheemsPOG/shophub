@@ -147,7 +147,7 @@ public class CatalogService {
         review.setProductId(product.getId());
         review.setUserId(userId);
         review.setRating(rating);
-        review.setTitle(title == null || title.isBlank() ? "Review" : title);
+        review.setTitle("");
         review.setBody(body == null ? "" : body);
         review.setVerified(orderItems.hasDeliveredPurchase(product.getId(), userId));
         reviews.save(review);
